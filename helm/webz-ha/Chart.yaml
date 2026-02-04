@@ -1,0 +1,6 @@
+apiVersion: v2
+name: webz-ha
+description: Webz HA application (EKS) - single active pod with external monitoring
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

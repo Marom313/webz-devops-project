@@ -1,0 +1,32 @@
+replicaCount: 1
+
+image:
+  repository: "<aws_account_id>.dkr.ecr.eu-central-1.amazonaws.com/webz-app"
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+service:
+  type: LoadBalancer
+  port: 80
+
+resources: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+priorityClass:
+  enabled: true
+  name: "webz-active-priority"
+  value: 100000
+  globalDefault: false
+  description: "Prefer scheduling the active pod"
+
+podLabels:
+  app: webz-ha
+
+# Active scheduling preference: prefer a specific node label if exists (optional)
+# Example in real cluster: label one node with: role=active-preferred
+activeNodeLabel:
+  enabled: false
+  key: "role"
+  value: "active-preferred"

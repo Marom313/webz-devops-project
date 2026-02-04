@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Webz DevOps Project</title>
+  </head>
+  <body>
+    <h1>Marom Gigi - Junior DevOps Engineer - Home Assignment</h1>
+    <h2>Hostname:</h2>
+    <p id="hostname"></p>
+
+    <script>
+      fetch('/hostname')
+        .then(res => res.text())
+        .then(data => {
+          document.getElementById("hostname").innerText = data;
+        });
+    </script>
+  </body>
+</html>
