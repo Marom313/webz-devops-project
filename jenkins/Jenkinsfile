@@ -1,0 +1,102 @@
+pipeline {
+  agent any
+
+  options {
+    timestamps()
+    disableConcurrentBuilds()
+  }
+
+  environment {
+    AWS_REGION = "eu-central-1"
+    ECR_REPO   = "<aws_account_id>.dkr.ecr.eu-central-1.amazonaws.com/webz-app"
+    IMAGE_TAG  = "${env.BUILD_NUMBER}"
+    HELM_RELEASE = "webz-ha"
+    HELM_CHART   = "helm/webz-ha"
+    KUBE_NAMESPACE = "default"
+
+    # Load Balancer endpoint (will be pasted after first deploy in real life)
+    WEBZ_ENDPOINT = "http://<your-lb-dns-name>"
+    LOG_DIR = "jenkins/logs"
+  }
+
+  triggers {
+    cron('H/5 * * * *') // every 5 minutes
+  }
+
+  stages {
+
+    stage('Prepare') {
+      steps {
+        sh '''
+          set -e
+          mkdir -p ${LOG_DIR}
+        '''
+      }
+    }
+
+    stage('Build Docker Image') {
+      steps {
+        sh '''
+          set -e
+          echo "Building Docker image..."
+          docker build -t webz-app:${IMAGE_TAG} app
+          docker tag webz-app:${IMAGE_TAG} ${ECR_REPO}:${IMAGE_TAG}
+          docker tag webz-app:${IMAGE_TAG} ${ECR_REPO}:latest
+        '''
+      }
+    }
+
+    stage('ECR Login & Push (Design)') {
+      steps {
+        sh '''
+          set -e
+          echo "DESIGN ONLY: Example ECR login & push commands"
+          echo "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REPO}"
+          echo "docker push ${ECR_REPO}:${IMAGE_TAG}"
+          echo "docker push ${ECR_REPO}:latest"
+        '''
+      }
+    }
+
+    stage('Deploy with Helm (Design)') {
+      steps {
+        sh '''
+          set -e
+          echo "DESIGN ONLY: Example helm upgrade/install command"
+          echo "helm upgrade --install ${HELM_RELEASE} ${HELM_CHART} \
+            --namespace ${KUBE_NAMESPACE} \
+            --set image.repository=${ECR_REPO} \
+            --set image.tag=${IMAGE_TAG}"
+        '''
+      }
+    }
+
+    stage('External Health Check') {
+      steps {
+        sh '''
+          set +e
+          TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          OUTFILE="${LOG_DIR}/health_${BUILD_NUMBER}_${TS}.log"
+          echo "[${TS}] Checking: ${WEBZ_ENDPOINT}" | tee -a "${OUTFILE}"
+
+          # Hit root and hostname endpoint
+          curl -s -S -m 10 "${WEBZ_ENDPOINT}/" | head -n 30 | tee -a "${OUTFILE}"
+          echo "" | tee -a "${OUTFILE}"
+
+          echo "[${TS}] Hostname:" | tee -a "${OUTFILE}"
+          curl -s -S -m 10 "${WEBZ_ENDPOINT}/hostname" | tee -a "${OUTFILE}"
+          echo "" | tee -a "${OUTFILE}"
+
+          echo "[${TS}] Done." | tee -a "${OUTFILE}"
+          exit 0
+        '''
+      }
+    }
+  }
+
+  post {
+    always {
+      archiveArtifacts artifacts: 'jenkins/logs/*.log', fingerprint: true
+    }
+  }
+}
